@@ -1,7 +1,16 @@
 // Refer to Homework3.docx for instructions on how to write this
-use std::{env, fmt, error::Error};
+use std::{env, fmt};
 use std::io::{self, Write};
-use std::path::{Path, PathBuf};
+
+use std::path::PathBuf;
+
+#[derive(Debug)]
+enum error {
+    IoError(std::io::Error),
+    FileNotFound(PathBuf),
+    BadLen(usize),
+    InvalidUsage
+}
 
 /*
     Commands to implement:
@@ -19,41 +28,23 @@ use std::path::{Path, PathBuf};
     10. dalekall
 */
 
-#[derive(Debug)]
-struct CLIError {
-    msg: String,
-    source: Option<Box<dyn Error>>
-}
-
-impl fmt::Display for CLIError {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "{}", self.msg)
-    }
-}
-
-impl Error for CLIError {
-    fn source(&self) -> Option<&(dyn Error + 'static)> {
-        self.source.as_deref()
-    }
-}
-
-fn movetodir(tokens: Vec<&str>) -> Result<PathBuf, CLIError>{
+fn movetodir(tokens: &[&str]) -> Result<PathBuf, error> {
     if tokens.len() > 2 {
-        Err()
-    } else {
+        Err(error::BadLen(tokens.len()))
+    } else { 
         let new_path: PathBuf = PathBuf::from(tokens[1].to_string());
 
         if new_path.exists() {
             return Ok(new_path)
         }
 
-        return Err("Invalid Path!");
+        Err(error::FileNotFound(new_path))
     }
 }
 
-fn whereami(tokens: Vec<&str>, cwd: &PathBuf) -> Result<(), &'static str>{
+fn whereami(tokens: &[&str], cwd: &PathBuf) -> Result<(), error>{
     if tokens.len() > 1 {
-        Err("Usage: whereami")
+        Err(error::BadLen(tokens.len()))
     } else {
         println!("{}", cwd.to_str().unwrap());
 
@@ -61,28 +52,40 @@ fn whereami(tokens: Vec<&str>, cwd: &PathBuf) -> Result<(), &'static str>{
     }
 }
 
-fn history(tokens: Vec<&str>) {
+fn get_history(tokens: &[&str], history: &[&str]) -> Result<(), error> {
+    if tokens.len() > 2 {
+        Err(error::BadLen(tokens.len()))
+    } else if tokens[1] != "-c" {
+        Err(error::InvalidUsage)
+    } else {
+
+        for &line in history {
+            println!("{line}");
+        }
+
+        Ok(())
+    }
+}
+
+fn replay(tokens: &[&str]) {
     todo!()
 }
 
-fn replay(tokens: Vec<&str>) {
+fn start(tokens: &[&str]) {
     todo!()
 }
 
-fn start(tokens: Vec<&str>) {
+fn background(tokens: &[&str]) {
     todo!()
 }
 
-fn background(tokens: Vec<&str>) {
+fn dalek(tokens: &[&str]) {
     todo!()
 }
 
-fn dalek(tokens: Vec<&str>) {
-    todo!()
-}
-
-fn main() -> Result<(), io::Error>{
+fn main() -> Result<(), error>{
     let mut cwd: PathBuf = env::current_dir()?;
+    let mut history: Vec<&str> = Vec::new();
 
     print!("# ");
     io::stdout().flush().unwrap();
@@ -97,20 +100,22 @@ fn main() -> Result<(), io::Error>{
 
         println!("line: {line}");
 
+        history.push(line);
+
         let tokens: Vec<&str> = line.split(' ').collect();
 
         println!("{tokens:?}");
 
         match tokens[0] {
             "movetodir" => {
-                cwd = movetodir(tokens)?;
+                cwd = movetodir(&tokens)?;
             },
-            "whereami" => whereami(tokens, &cwd),
-            "replay" => replay(tokens),
-            "start" => start(tokens),
-            "background" => background(tokens),
-            "dalek" => dalek(tokens),
-            "history" => history(tokens),
+            "whereami" => whereami(&tokens, &cwd)?,
+            "replay" => replay(&tokens),
+            "start" => start(&tokens),
+            "background" => background(&tokens),
+            "dalek" => dalek(&tokens),
+            "history" => get_history(&tokens, &history)?,
             "byebye" => std::process::exit(0),
             _ => println!("{}: command not found", tokens[0])
         }
