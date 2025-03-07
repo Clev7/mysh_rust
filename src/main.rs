@@ -5,11 +5,11 @@ use std::io::{self, Write};
 use std::path::PathBuf;
 
 #[derive(Debug)]
-enum error {
+enum Error {
     IoError(std::io::Error),
     FileNotFound(PathBuf),
     BadLen(usize),
-    InvalidUsage
+    InvalidUsage,
 }
 
 /*
@@ -28,9 +28,9 @@ enum error {
     10. dalekall
 */
 
-fn movetodir(tokens: &[&str]) -> Result<PathBuf, error> {
+fn movetodir(tokens: &[&str]) -> Result<PathBuf, Error> {
     if tokens.len() > 2 {
-        Err(error::BadLen(tokens.len()))
+        Err(Error::BadLen(tokens.len()))
     } else { 
         let new_path: PathBuf = PathBuf::from(tokens[1].to_string());
 
@@ -38,13 +38,13 @@ fn movetodir(tokens: &[&str]) -> Result<PathBuf, error> {
             return Ok(new_path)
         }
 
-        Err(error::FileNotFound(new_path))
+        Err(Error::FileNotFound(new_path))
     }
 }
 
-fn whereami(tokens: &[&str], cwd: &PathBuf) -> Result<(), error>{
+fn whereami(tokens: &[&str], cwd: &PathBuf) -> Result<(), Error>{
     if tokens.len() > 1 {
-        Err(error::BadLen(tokens.len()))
+        Err(Error::BadLen(tokens.len()))
     } else {
         println!("{}", cwd.to_str().unwrap());
 
@@ -52,14 +52,21 @@ fn whereami(tokens: &[&str], cwd: &PathBuf) -> Result<(), error>{
     }
 }
 
-fn get_history(tokens: &[&str], history: &[&str]) -> Result<(), error> {
+fn get_history(tokens: &[&str], history: &mut Vec<String>) -> Result<(), Error> {
     if tokens.len() > 2 {
-        Err(error::BadLen(tokens.len()))
-    } else if tokens[1] != "-c" {
-        Err(error::InvalidUsage)
-    } else {
+        return Err(Error::BadLen(tokens.len()));
+    }
 
-        for &line in history {
+    if tokens.len() == 2 {
+        if tokens[1] != "-c" {
+            Err(Error::InvalidUsage)
+        } else {
+            history.clear();
+
+            Ok(())
+        }
+    } else {
+        for line in history {
             println!("{line}");
         }
 
@@ -83,9 +90,10 @@ fn dalek(tokens: &[&str]) {
     todo!()
 }
 
-fn main() -> Result<(), error>{
-    let mut cwd: PathBuf = env::current_dir()?;
-    let mut history: Vec<&str> = Vec::new();
+fn main() -> Result<(), Error>{
+    let mut cwd: PathBuf = env::current_dir().map_err(|err| Error::IoError(err))?;
+
+    let mut history: Vec<String> = Vec::new();
 
     print!("# ");
     io::stdout().flush().unwrap();
@@ -96,13 +104,13 @@ fn main() -> Result<(), error>{
             .read_line(&mut line)
             .expect("Failed to read line");
 
-        let line: &str = line.trim_end();
+        let trimmed_line: &str = line.trim_end();
 
-        println!("line: {line}");
+        // println!("line: {line}");
 
-        history.push(line);
+        history.push(line.clone());
 
-        let tokens: Vec<&str> = line.split(' ').collect();
+        let tokens: Vec<&str> = trimmed_line.split(' ').collect();
 
         println!("{tokens:?}");
 
@@ -115,7 +123,7 @@ fn main() -> Result<(), error>{
             "start" => start(&tokens),
             "background" => background(&tokens),
             "dalek" => dalek(&tokens),
-            "history" => get_history(&tokens, &history)?,
+            "history" => get_history(&tokens, &mut history)?,
             "byebye" => std::process::exit(0),
             _ => println!("{}: command not found", tokens[0])
         }
