@@ -1,7 +1,6 @@
 // Refer to Homework3.docx for instructions on how to write this
-use std::{env, fmt};
+use std::env;
 use std::io::{self, Write};
-
 use std::path::PathBuf;
 
 #[derive(Debug)]
@@ -66,8 +65,8 @@ fn get_history(tokens: &[&str], history: &mut Vec<String>) -> Result<(), Error> 
             Ok(())
         }
     } else {
-        for line in history {
-            println!("{line}");
+        for (i, line) in history.iter().enumerate() {
+            println!("{i}: {line}");
         }
 
         Ok(())
@@ -91,28 +90,26 @@ fn dalek(tokens: &[&str]) {
 }
 
 fn main() -> Result<(), Error>{
-    let mut cwd: PathBuf = env::current_dir().map_err(|err| Error::IoError(err))?;
-
+    let mut cwd = env::current_dir().map_err(|err| Error::IoError(err))?;
     let mut history: Vec<String> = Vec::new();
 
-    print!("# ");
-    io::stdout().flush().unwrap();
-
     loop {
+        print!("# ");
+        io::stdout().flush().unwrap();
+
         let mut line: String = String::new();
         io::stdin()
             .read_line(&mut line)
             .expect("Failed to read line");
 
-        let trimmed_line: &str = line.trim_end();
+        let trimmed_line: &str = line.trim_end_matches('\n').trim_end();
 
         // println!("line: {line}");
 
-        history.push(line.clone());
+        history.push(trimmed_line.to_string());
 
         let tokens: Vec<&str> = trimmed_line.split(' ').collect();
-
-        println!("{tokens:?}");
+        // println!("{tokens:?}");
 
         match tokens[0] {
             "movetodir" => {
@@ -128,7 +125,6 @@ fn main() -> Result<(), Error>{
             _ => println!("{}: command not found", tokens[0])
         }
 
-        print!("# ");
         io::stdout().flush().unwrap();
     }
 }
