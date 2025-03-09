@@ -1,14 +1,17 @@
 // Refer to Homework3.docx for instructions on how to write this
 use std::env;
 use std::io::{self, Write};
+use std::num::ParseIntError;
 use std::path::PathBuf;
+use std::process::Command;
 
 #[derive(Debug)]
-enum Error {
+enum CliError {
     IoError(std::io::Error),
     FileNotFound(PathBuf),
     BadLen(usize),
     InvalidUsage,
+    ParseError(ParseIntError),
 }
 
 /*
@@ -27,23 +30,23 @@ enum Error {
     10. dalekall
 */
 
-fn movetodir(tokens: &[&str]) -> Result<PathBuf, Error> {
+fn movetodir(tokens: &[&str]) -> Result<PathBuf, CliError> {
     if tokens.len() > 2 {
-        Err(Error::BadLen(tokens.len()))
-    } else { 
+        Err(CliError::BadLen(tokens.len()))
+    } else {
         let new_path: PathBuf = PathBuf::from(tokens[1].to_string());
 
         if new_path.exists() {
-            return Ok(new_path)
+            return Ok(new_path);
         }
 
-        Err(Error::FileNotFound(new_path))
+        Err(CliError::FileNotFound(new_path))
     }
 }
 
-fn whereami(tokens: &[&str], cwd: &PathBuf) -> Result<(), Error>{
+fn whereami(tokens: &[&str], cwd: &PathBuf) -> Result<(), CliError> {
     if tokens.len() > 1 {
-        Err(Error::BadLen(tokens.len()))
+        Err(CliError::BadLen(tokens.len()))
     } else {
         println!("{}", cwd.to_str().unwrap());
 
@@ -51,14 +54,14 @@ fn whereami(tokens: &[&str], cwd: &PathBuf) -> Result<(), Error>{
     }
 }
 
-fn get_history(tokens: &[&str], history: &mut Vec<String>) -> Result<(), Error> {
+fn get_history(tokens: &[&str], history: &mut Vec<String>) -> Result<(), CliError> {
     if tokens.len() > 2 {
-        return Err(Error::BadLen(tokens.len()));
+        return Err(CliError::BadLen(tokens.len()));
     }
 
     if tokens.len() == 2 {
         if tokens[1] != "-c" {
-            Err(Error::InvalidUsage)
+            Err(CliError::InvalidUsage)
         } else {
             history.clear();
 
@@ -73,12 +76,27 @@ fn get_history(tokens: &[&str], history: &mut Vec<String>) -> Result<(), Error> 
     }
 }
 
-fn replay(tokens: &[&str]) {
+fn replay(tokens: &[&str], history: &[String]) -> Result<(), CliError> {
+    let idx: usize = tokens[1]
+        .parse::<usize>()
+        .map_err(|err| CliError::ParseError(err))?;
+
     todo!()
 }
 
-fn start(tokens: &[&str]) {
-    todo!()
+fn start(tokens: &[&str]) -> Result<(), CliError> {
+    if tokens.len() < 2 {
+        return Err(CliError::BadLen(tokens.len()));
+    }
+
+    let mut child = Command::new(tokens[1])
+        .args(&tokens[2..])
+        .spawn()
+        .map_err(|err: std::io::Error| CliError::IoError(err))?;
+
+    child.wait().map_err(|err: std::io::Error| CliError::IoError(err))?;
+
+    Ok(())
 }
 
 fn background(tokens: &[&str]) {
@@ -89,8 +107,8 @@ fn dalek(tokens: &[&str]) {
     todo!()
 }
 
-fn main() -> Result<(), Error>{
-    let mut cwd = env::current_dir().map_err(|err| Error::IoError(err))?;
+fn main() -> Result<(), CliError> {
+    let mut cwd = env::current_dir().map_err(|err| CliError::IoError(err))?;
     let mut history: Vec<String> = Vec::new();
 
     loop {
@@ -104,25 +122,24 @@ fn main() -> Result<(), Error>{
 
         let trimmed_line: &str = line.trim_end_matches('\n').trim_end();
 
-        // println!("line: {line}");
-
-        history.push(trimmed_line.to_string());
-
         let tokens: Vec<&str> = trimmed_line.split(' ').collect();
-        // println!("{tokens:?}");
+
+        if tokens[0] != "replay" {
+            history.push(trimmed_line.to_string());
+        }
 
         match tokens[0] {
             "movetodir" => {
                 cwd = movetodir(&tokens)?;
-            },
+            }
             "whereami" => whereami(&tokens, &cwd)?,
-            "replay" => replay(&tokens),
-            "start" => start(&tokens),
+            "replay" => {}
+            "start" => start(&tokens)?,
             "background" => background(&tokens),
             "dalek" => dalek(&tokens),
             "history" => get_history(&tokens, &mut history)?,
             "byebye" => std::process::exit(0),
-            _ => println!("{}: command not found", tokens[0])
+            _ => println!("{}: command not found", tokens[0]),
         }
 
         io::stdout().flush().unwrap();
