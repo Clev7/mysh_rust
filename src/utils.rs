@@ -24,7 +24,7 @@ pub fn dispatch(tokens: &[&str], history: &mut Vec<String>, cwd: &mut PathBuf) -
         "replay" => replay(tokens, history, cwd)?,
         "start" => start(&tokens)?,
         "background" => background(&tokens)?,
-        "dalek" => dalek(&tokens),
+        "dalek" => dalek(&tokens)?,
         "history" => get_history(&tokens, history)?,
         "byebye" => std::process::exit(0),
         _ => println!("{}: command not found", tokens[0]),
