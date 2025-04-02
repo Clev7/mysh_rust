@@ -27,7 +27,7 @@ pub fn dispatch(tokens: &[&str], history: &mut Vec<String>, cwd: &mut PathBuf) -
         "dalek" => dalek(&tokens)?,
         "history" => get_history(&tokens, history)?,
         "byebye" => std::process::exit(0),
-        _ => println!("{}: command not found", tokens[0]),
+        _ => eprintln!("{}: command not found", tokens[0]),
     }
 
     Ok(())

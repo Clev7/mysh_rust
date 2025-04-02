@@ -77,6 +77,10 @@ fn get_history(tokens: &[&str], history: &mut Vec<String>) -> Result<(), CliErro
 // TODO: Implement with split_at_mut.
 // TODO: understand split_at_mut better.
 fn replay(curr_tokens: &[&str], history: &mut Vec<String>, cwd: &mut PathBuf) -> Result<(), CliError> {
+    if curr_tokens.len() != 2  {
+        return Err(CliError::BadLen(curr_tokens.len()));
+    }
+
     let idx: usize = curr_tokens[1]
         .parse::<usize>()
         .map_err(|err| CliError::ParseError(err))?;
@@ -93,7 +97,7 @@ fn replay(curr_tokens: &[&str], history: &mut Vec<String>, cwd: &mut PathBuf) ->
 
     if idx != 0 {
         history.push(trimmed_line);
-        println!("{history:?} {command_vec:?}");
+        // println!("{history:?} {command_vec:?}");
         dispatch(&command_slice, &mut history.clone(), cwd)?;
     }
 
@@ -158,17 +162,7 @@ fn main() -> () {
         // Takes in tokens: Vec<&str>, cwd: 
         // dispatch(&tokens, &mut history, &mut cwd).unwrap();
 
-        match tokens[0] {
-            "movetodir" => movetodir(&tokens, &mut cwd).unwrap_or_else(handle_err),
-            "whereami" => whereami(&tokens, &cwd).unwrap_or_else(handle_err),
-            "replay" => replay(&tokens, &mut history, &mut cwd).unwrap_or_else(handle_err),
-            "start" => start(&tokens).unwrap_or_else(handle_err),
-            "background" => background(&tokens).unwrap_or_else(handle_err),
-            "dalek" => dalek(&tokens).unwrap_or_else(handle_err),
-            "history" => get_history(&tokens, &mut history).unwrap_or_else(handle_err),
-            "byebye" => std::process::exit(0),
-            _ => eprintln!("{}: command not found", tokens[0]),
-        }
+        dispatch(&tokens, &mut history, &mut cwd).unwrap_or_else(handle_err);
 
         io::stdout().flush().unwrap();
     }
