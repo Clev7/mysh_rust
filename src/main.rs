@@ -74,6 +74,8 @@ fn get_history(tokens: &[&str], history: &mut Vec<String>) -> Result<(), CliErro
     }
 }
 
+// TODO: Implement with split_at_mut.
+// TODO: understand split_at_mut better.
 fn replay(curr_tokens: &[&str], history: &mut Vec<String>, cwd: &mut PathBuf) -> Result<(), CliError> {
     let idx: usize = curr_tokens[1]
         .parse::<usize>()
@@ -126,12 +128,16 @@ fn background(tokens: &[&str]) -> Result<(), CliError>{
     Ok(())
 }
 
-fn dalek(tokens: &[&str]) {
+fn dalek(tokens: &[&str]) -> Result<(), CliError>{
     todo!()
 }
 
-fn main() -> Result<(), CliError> {
-    let mut cwd: PathBuf = env::current_dir().map_err(|err| CliError::IoError(err))?;
+fn handle_err(err: CliError) {
+    println!("{:?}", err);
+}
+
+fn main() -> () {
+    let mut cwd: PathBuf = env::current_dir().unwrap();
     let mut history: Vec<String> = Vec::new();
 
     loop {
@@ -153,15 +159,15 @@ fn main() -> Result<(), CliError> {
         // dispatch(&tokens, &mut history, &mut cwd).unwrap();
 
         match tokens[0] {
-            "movetodir" => movetodir(&tokens, &mut cwd)?,
-            "whereami" => whereami(&tokens, &cwd)?,
-            "replay" => replay(&tokens, &mut history, &mut cwd)?,
-            "start" => start(&tokens)?,
-            "background" => background(&tokens)?,
-            "dalek" => dalek(&tokens),
-            "history" => get_history(&tokens, &mut history)?,
+            "movetodir" => movetodir(&tokens, &mut cwd).unwrap_or_else(handle_err),
+            "whereami" => whereami(&tokens, &cwd).unwrap_or_else(handle_err),
+            "replay" => replay(&tokens, &mut history, &mut cwd).unwrap_or_else(handle_err),
+            "start" => start(&tokens).unwrap_or_else(handle_err),
+            "background" => background(&tokens).unwrap_or_else(handle_err),
+            "dalek" => dalek(&tokens).unwrap_or_else(handle_err),
+            "history" => get_history(&tokens, &mut history).unwrap_or_else(handle_err),
             "byebye" => std::process::exit(0),
-            _ => println!("{}: command not found", tokens[0]),
+            _ => eprintln!("{}: command not found", tokens[0]),
         }
 
         io::stdout().flush().unwrap();
