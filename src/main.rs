@@ -133,12 +133,13 @@ fn dalek(tokens: &[&str], children: &mut Vec<Child>) -> Result<(), CliError> {
     let target_pid: u32 = tokens[1].parse::<u32>()
                             .map_err(|err| CliError::ParseError(err))?;
 
-
     Command::new("kill")
         .arg("-9")
         .arg(tokens[1])
-        .output()
-        .map_err(|err: std::io::Error| CliError::IoError(err))?;
+        .spawn()
+        .map_err(|err| CliError::IoError(err))?
+        .wait()
+        .map_err(|err| CliError::IoError(err))?;
 
     children.retain(|child| child.id() != target_pid);
 
