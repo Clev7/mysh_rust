@@ -5,7 +5,7 @@ mod cli_error;
 use std::env;
 use std::io::{self, Write};
 use std::path::PathBuf;
-use std::process::Command;
+use std::process::{Child, Command};
 use utils::{tokenize, dispatch};
 use cli_error::{CliError, OutOfBoundsParams};
 
@@ -43,7 +43,7 @@ fn get_history(tokens: &[&str], history: &mut Vec<String>) -> Result<(), CliErro
 
     if tokens.len() == 2 {
         if tokens[1] != "-c" {
-            Err(CliError::InvalidUsage)
+            Err(CliError::InvalidUsage("Usage: history [-c]"))
         } else {
             history.clear();
 
@@ -60,7 +60,7 @@ fn get_history(tokens: &[&str], history: &mut Vec<String>) -> Result<(), CliErro
 
 // TODO: Implement with split_at_mut.
 // TODO: understand split_at_mut better.
-fn replay(curr_tokens: &[&str], history: &mut Vec<String>, cwd: &mut PathBuf) -> Result<(), CliError> {
+fn replay(curr_tokens: &[&str], history: &mut Vec<String>, cwd: &mut PathBuf, children: &mut Vec<Child>) -> Result<(), CliError> {
     if curr_tokens.len() != 2  {
         return Err(CliError::BadLen(curr_tokens.len()));
     }
@@ -88,7 +88,7 @@ fn replay(curr_tokens: &[&str], history: &mut Vec<String>, cwd: &mut PathBuf) ->
 
     history.push(trimmed_line);
     // println!("{history:?} {command_vec:?}");
-    dispatch(&command_slice, &mut history.clone(), cwd)?;
+    dispatch(&command_slice, &mut history.clone(), cwd, children)?;
 
     Ok(())
 }
@@ -103,14 +103,12 @@ fn start(tokens: &[&str]) -> Result<(), CliError> {
         .spawn()
         .map_err(|err: std::io::Error| CliError::IoError(err))?;
 
-    println!("PID: {}", child.id());
-
     child.wait().map_err(|err: std::io::Error| CliError::IoError(err))?;
 
     Ok(())
 }
 
-fn background(tokens: &[&str]) -> Result<(), CliError>{
+fn background(tokens: &[&str], children: &mut Vec<Child>) -> Result<(), CliError>{
     if tokens.len() < 2 {
         return Err(CliError::BadLen(tokens.len()));
     }
@@ -121,14 +119,20 @@ fn background(tokens: &[&str]) -> Result<(), CliError>{
         .map_err(|err: std::io::Error| CliError::IoError(err))?;
 
     println!("PID: {}", child.id());
+
+    children.push(child);
     
     Ok(())
 }
 
-fn dalek(tokens: &[&str]) -> Result<(), CliError> {
-    if (tokens.len() != 2) {
+fn dalek(tokens: &[&str], children: &mut Vec<Child>) -> Result<(), CliError> {
+    if tokens.len() != 2 {
         return Err(CliError::BadLen(tokens.len()));
     }
+
+    let target_pid: u32 = tokens[1].parse::<u32>()
+                            .map_err(|err| CliError::ParseError(err))?;
+
 
     Command::new("kill")
         .arg("-9")
@@ -136,46 +140,45 @@ fn dalek(tokens: &[&str]) -> Result<(), CliError> {
         .output()
         .map_err(|err: std::io::Error| CliError::IoError(err))?;
 
+    children.retain(|child| child.id() != target_pid);
+
     Ok(())
 }
 
-fn dalekall(tokens: &[&str]) -> Result<(), CliError> {
-    if (tokens.len() != 2) {
+fn dalekall(tokens: &[&str], children: &mut Vec<Child>) -> Result<(), CliError> {
+    if tokens.len() != 1 {
         return Err(CliError::BadLen(tokens.len()));
     }
 
-    Command::new("killall")
-        .output()
-        .map_err(|err: std::io::Error| CliError::IoError(err))?;
+    print!("Exterminating {} processes: ", children.len());
 
+    for child in children.iter_mut() {
+        print!("{}", child.id());
+        child.kill().map_err(|err: std::io::Error| CliError::IoError(err))?;
+    }
+
+    children.clear();
     Ok(())
 }
 
 fn handle_err(err: CliError) {
     use CliError::*;
     match err {
-        IoError(e) => {
-            eprintln!("IOError({:?})", e);
+        IoError(e) => eprintln!("IOError({:?})", e),
+        FileNotFound(file_path) => eprintln!("File not found: {:?}", file_path),
+        BadLen(arg) => eprintln!("Incorrect length of arguments: {:?}", arg),
+        ParseError(arg) => eprintln!("An error occurred while parsing argument \"{arg}\""),
+        OutOfBounds(OutOfBoundsParams { idx, len }) => { 
+            eprintln!("Index {idx} out of bounds for length {len}")
         },
-        FileNotFound(file_path) => {
-            eprintln!("File not found: {:?}", file_path)
-        },
-        BadLen(arg) => {
-            eprintln!("Incorrect length of arguments: {:?}", arg);
-        },
-        ParseError(arg) => {
-            eprintln!("An error occurred while parsing argument \"{arg}\"");
-        },
-        OutOfBounds(OutOfBoundsParams { idx, len }) => {
-            eprintln!("Index {idx} out of bounds for length {len}");
-        },
-        _ => eprintln!("{:?}", err)
+        InvalidUsage(usage) => eprintln!("{:?}", usage)
     }
 }
 
 fn main() -> () {
     let mut cwd: PathBuf = env::current_dir().unwrap();
     let mut history: Vec<String> = Vec::new();
+    let mut children: Vec<Child> = Vec::new();
 
     loop {
         print!("# ");
@@ -190,16 +193,13 @@ fn main() -> () {
             continue;
         }
 
-        let (_, tokens) = utils::tokenize(line.as_str());
+        let (trimmed_line, tokens) = utils::tokenize(line.as_str());
 
-        // if tokens[0] != "replay" {
-        //     history.push(trimmed_line.to_string());
-        // }
+        if tokens[0] != "replay" {
+            history.push(trimmed_line.to_string());
+        }
 
-        // Takes in tokens: Vec<&str>, cwd: 
-        // dispatch(&tokens, &mut history, &mut cwd).unwrap();
-
-        dispatch(&tokens, &mut history, &mut cwd).unwrap_or_else(handle_err);
+        dispatch(&tokens, &mut history, &mut cwd, &mut children).unwrap_or_else(handle_err);
 
         io::stdout().flush().unwrap();
     }

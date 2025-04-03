@@ -6,7 +6,7 @@ pub enum CliError {
     IoError(std::io::Error),
     FileNotFound(PathBuf),
     BadLen(usize),
-    InvalidUsage,
+    InvalidUsage(&'static str),
     ParseError(ParseIntError),
     OutOfBounds(OutOfBoundsParams),
 }

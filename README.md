@@ -13,4 +13,5 @@ To run this project, simply execute ```cargo run```
 
 #### Bonuses:
 ⏳ ```repeat n command _```
-⏳ ```dalekall```
+✅ ```dalekall```
+⏳ ```help```
