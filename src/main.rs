@@ -9,22 +9,6 @@ use std::process::Command;
 use utils::{tokenize, dispatch};
 use cli_error::CliError;
 
-/*
-    Commands to implement:
-    1. movetodir
-    2. whereami
-    3. history [-c]
-    4. byebye
-    5. replay number
-    6. start program [parameters]
-    7. background program [parameters]
-    8. dalek PID
-
-    Bonuses:
-    9. repeat n command _
-    10. dalekall
-*/
-
 fn movetodir(tokens: &[&str], cwd: &mut PathBuf) -> Result<(), CliError> {
     if tokens.len() != 2 {
         Err(CliError::BadLen(tokens.len()))
