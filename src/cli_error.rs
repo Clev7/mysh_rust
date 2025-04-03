@@ -8,6 +8,12 @@ pub enum CliError {
     BadLen(usize),
     InvalidUsage,
     ParseError(ParseIntError),
-    OutOfBounds(usize),
+    OutOfBounds(OutOfBoundsParams),
+}
+
+#[derive(Debug)]
+pub struct OutOfBoundsParams {
+    pub idx: usize,
+    pub len: usize,
 }
 

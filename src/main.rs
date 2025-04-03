@@ -7,7 +7,7 @@ use std::io::{self, Write};
 use std::path::PathBuf;
 use std::process::Command;
 use utils::{tokenize, dispatch};
-use cli_error::CliError;
+use cli_error::{CliError, OutOfBoundsParams};
 
 fn movetodir(tokens: &[&str], cwd: &mut PathBuf) -> Result<(), CliError> {
     if tokens.len() != 2 {
@@ -70,7 +70,10 @@ fn replay(curr_tokens: &[&str], history: &mut Vec<String>, cwd: &mut PathBuf) ->
         .map_err(|err| CliError::ParseError(err))?;
 
     if idx >= history.len() {
-        return Err(CliError::OutOfBounds(idx));
+        return Err(CliError::OutOfBounds(OutOfBoundsParams {
+            idx: idx,
+            len: history.len()
+        }));
     }
 
     let (trimmed_line, command_tokens) = tokenize(&history[idx]);
@@ -100,6 +103,8 @@ fn start(tokens: &[&str]) -> Result<(), CliError> {
         .spawn()
         .map_err(|err: std::io::Error| CliError::IoError(err))?;
 
+    println!("PID: {}", child.id());
+
     child.wait().map_err(|err: std::io::Error| CliError::IoError(err))?;
 
     Ok(())
@@ -110,16 +115,40 @@ fn background(tokens: &[&str]) -> Result<(), CliError>{
         return Err(CliError::BadLen(tokens.len()));
     }
 
-    Command::new(tokens[1])
+    let child = Command::new(tokens[1])
         .args(&tokens[2..])
         .spawn()
         .map_err(|err: std::io::Error| CliError::IoError(err))?;
+
+    println!("PID: {}", child.id());
     
     Ok(())
 }
 
-fn dalek(tokens: &[&str]) -> Result<(), CliError>{
-    todo!()
+fn dalek(tokens: &[&str]) -> Result<(), CliError> {
+    if (tokens.len() != 2) {
+        return Err(CliError::BadLen(tokens.len()));
+    }
+
+    Command::new("kill")
+        .arg("-9")
+        .arg(tokens[1])
+        .output()
+        .map_err(|err: std::io::Error| CliError::IoError(err))?;
+
+    Ok(())
+}
+
+fn dalekall(tokens: &[&str]) -> Result<(), CliError> {
+    if (tokens.len() != 2) {
+        return Err(CliError::BadLen(tokens.len()));
+    }
+
+    Command::new("killall")
+        .output()
+        .map_err(|err: std::io::Error| CliError::IoError(err))?;
+
+    Ok(())
 }
 
 fn handle_err(err: CliError) {
@@ -137,8 +166,8 @@ fn handle_err(err: CliError) {
         ParseError(arg) => {
             eprintln!("An error occurred while parsing argument \"{arg}\"");
         },
-        OutOfBounds(arg) => {
-            eprintln!("Index {arg} out of bounds");
+        OutOfBounds(OutOfBoundsParams { idx, len }) => {
+            eprintln!("Index {idx} out of bounds for length {len}");
         },
         _ => eprintln!("{:?}", err)
     }
@@ -161,11 +190,11 @@ fn main() -> () {
             continue;
         }
 
-        let (trimmed_line, tokens) = utils::tokenize(line.as_str());
+        let (_, tokens) = utils::tokenize(line.as_str());
 
-        if tokens[0] != "replay" {
-            history.push(trimmed_line.to_string());
-        }
+        // if tokens[0] != "replay" {
+        //     history.push(trimmed_line.to_string());
+        // }
 
         // Takes in tokens: Vec<&str>, cwd: 
         // dispatch(&tokens, &mut history, &mut cwd).unwrap();
