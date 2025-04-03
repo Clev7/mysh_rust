@@ -85,6 +85,10 @@ fn replay(curr_tokens: &[&str], history: &mut Vec<String>, cwd: &mut PathBuf) ->
         .parse::<usize>()
         .map_err(|err| CliError::ParseError(err))?;
 
+    if idx >= history.len() {
+        return Err(CliError::OutOfBounds(idx));
+    }
+
     let (trimmed_line, command_tokens) = tokenize(&history[idx]);
     let trimmed_line = trimmed_line.to_owned();
     let mut command_vec: Vec<String> = Vec::new();
@@ -95,11 +99,9 @@ fn replay(curr_tokens: &[&str], history: &mut Vec<String>, cwd: &mut PathBuf) ->
 
     let command_slice: Vec<&str> = command_vec.iter().map(|s| s.as_str()).collect();
 
-    if idx != 0 {
-        history.push(trimmed_line);
-        // println!("{history:?} {command_vec:?}");
-        dispatch(&command_slice, &mut history.clone(), cwd)?;
-    }
+    history.push(trimmed_line);
+    // println!("{history:?} {command_vec:?}");
+    dispatch(&command_slice, &mut history.clone(), cwd)?;
 
     Ok(())
 }
@@ -137,7 +139,25 @@ fn dalek(tokens: &[&str]) -> Result<(), CliError>{
 }
 
 fn handle_err(err: CliError) {
-    println!("{:?}", err);
+    use CliError::*;
+    match err {
+        IoError(e) => {
+            eprintln!("IOError({:?})", e);
+        },
+        FileNotFound(file_path) => {
+            eprintln!("File not found: {:?}", file_path)
+        },
+        BadLen(arg) => {
+            eprintln!("Incorrect length of arguments: {:?}", arg);
+        },
+        ParseError(arg) => {
+            eprintln!("An error occurred while parsing argument \"{arg}\"");
+        },
+        OutOfBounds(arg) => {
+            eprintln!("Index {arg} out of bounds");
+        },
+        _ => eprintln!("{:?}", err)
+    }
 }
 
 fn main() -> () {
@@ -152,6 +172,10 @@ fn main() -> () {
         io::stdin()
             .read_line(&mut line)
             .expect("Failed to read line");
+
+        if line.is_empty() {
+            continue;
+        }
 
         let (trimmed_line, tokens) = utils::tokenize(line.as_str());
 

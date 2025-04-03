@@ -8,5 +8,6 @@ pub enum CliError {
     BadLen(usize),
     InvalidUsage,
     ParseError(ParseIntError),
+    OutOfBounds(usize),
 }
 
