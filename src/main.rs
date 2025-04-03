@@ -159,9 +159,11 @@ fn dalekall(tokens: &[&str], children: &mut Vec<Child>) -> Result<(), CliError> 
     print!("Exterminating {} processes: ", children.len());
 
     for child in children.iter_mut() {
-        print!("{}", child.id());
+        print!("{} ", child.id());
         child.kill().map_err(|err: std::io::Error| CliError::IoError(err))?;
     }
+
+    println!();
 
     children.clear();
     Ok(())
