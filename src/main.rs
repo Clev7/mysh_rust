@@ -150,6 +150,11 @@ fn dalekall(tokens: &[&str], children: &mut Vec<Child>) -> Result<(), CliError> 
         return Err(CliError::BadLen(tokens.len()));
     }
 
+    if children.len() == 0 {
+        eprintln!("This shell has not produced any child processes to kill");
+        return Ok(())
+    }
+
     print!("Exterminating {} processes: ", children.len());
 
     for child in children.iter_mut() {
