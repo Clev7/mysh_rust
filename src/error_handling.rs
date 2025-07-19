@@ -25,7 +25,7 @@ pub fn handle_err(err: CliError) {
         BadLen(arg) => eprintln!("Incorrect length of arguments: {:?}", arg),
         ParseError(arg) => eprintln!("An error occurred while parsing argument \"{arg}\""),
         OutOfBounds(OutOfBoundsParams { idx, len }) => {
-            eprintln!("Index {idx} out of bounds for length {len}")
+            panic!("Index {idx} out of bounds for length {len}")
         },
         InvalidUsage(usage) => eprintln!("{:?}", usage)
     }

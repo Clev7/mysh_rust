@@ -1,7 +1,10 @@
 use std::{path::PathBuf, process::Child, process::Command};
+use std::fs;
 
 pub mod error_handling;
 pub mod tokenize;
+
+mod tests;
 
 use error_handling::{CliError, OutOfBoundsParams};
 use tokenize::tokenize;
@@ -11,6 +14,31 @@ fn whereami(tokens: &[&str], cwd: &PathBuf) -> Result<(), CliError> {
         Err(CliError::BadLen(tokens.len()))
     } else {
         println!("{}", cwd.to_str().unwrap());
+
+        Ok(())
+    }
+}
+
+fn diff(tokens: &[&str], cwd: &PathBuf) -> Result<(), CliError> {
+    if tokens.len() != 3 {
+        Err(CliError::BadLen(tokens.len()))
+    } else {
+        // We should be doing File I/O here.
+
+        let f1 = fs::File::open(tokens[1]);
+
+        println!("f1: {:?}", f1);
+
+        if f1.is_err() {
+            CliError::IoError(f1.unwrap_err());
+        }
+
+        let f2 = fs::File::open(tokens[2]);
+        println!("f2: {:?}", f2);
+
+        if f2.is_err() {
+            CliError::IoError(f2.unwrap_err());
+        }
 
         Ok(())
     }
@@ -199,15 +227,16 @@ pub fn dispatch(
     children: &mut Vec<Child>,
 ) -> Result<(), CliError> {
     match tokens[0] {
-        "movetodir" => movetodir(&tokens, cwd)?,
-        "ls" => ls(&tokens)?,
-        "whereami" => whereami(&tokens, cwd)?,
+        "movetodir" => movetodir(tokens, cwd)?,
+        "ls" => ls(tokens)?,
+        "whereami" => whereami(tokens, cwd)?,
         "replay" => replay(tokens, history, cwd, children)?,
-        "start" => start(&tokens)?,
-        "background" => background(&tokens, children)?,
-        "dalek" => dalek(&tokens, children)?,
-        "dalekall" => dalekall(&tokens, children)?,
-        "history" => get_history(&tokens, history)?,
+        "start" => start(tokens)?,
+        "background" => background(tokens, children)?,
+        "dalek" => dalek(tokens, children)?,
+        "dalekall" => dalekall(tokens, children)?,
+        "history" => get_history(tokens, history)?,
+        "diff" => diff(tokens, cwd)?,
         // TODO: Make a more robust help where you can pass specific commands as args
         "help" => {
             println!("These shell commands are defined internally. Type 'help' to see this list.");
@@ -241,7 +270,7 @@ pub fn dispatch(
                 "{:<30}\t\t\tKills all child processes spawned by this terminal.",
                 "dalekall"
             );
-        }
+        },
         "byebye" => std::process::exit(0),
         "" => (),
         _ => eprintln!("{}: command not found", tokens[0]),

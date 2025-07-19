@@ -1,0 +1,10 @@
+mod movetodir;
+mod ls;
+mod whereami;
+mod replay;
+mod start;
+mod background;
+mod dalek;
+mod dalekall;
+mod history;
+mod diff;
