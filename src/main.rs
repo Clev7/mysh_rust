@@ -4,8 +4,8 @@ use std::io::{self, Write};
 use std::path::PathBuf;
 use std::process::Child;
 
-use mysh_rust::{dispatch, tokenize::tokenize};
 use mysh_rust::error_handling::handle_err;
+use mysh_rust::{dispatch, tokenize::tokenize};
 
 fn main() -> () {
     let mut cwd: PathBuf = env::current_dir().unwrap();
